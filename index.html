@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChemQuest — ทายคำศัพท์เคมี</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #2a3a55;
+    --accent1: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --accent4: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 20%, rgba(124,58,237,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,229,255,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(42,58,85,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,58,85,0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+    pointer-events: none;
+  }
+  #app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .header { text-align: center; padding: 32px 0 20px; }
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, var(--accent1) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(0,229,255,0.4));
+  }
+  .logo span {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 6px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* SCREENS */
+  .screen { display: none; width: 100%; max-width: 820px; }
+  .screen.active { display: block; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* HOME */
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  @media (max-width: 520px) { .category-grid { grid-template-columns: 1fr; } }
+  .cat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+  }
+  .cat-card[data-cat="1"] { --card-color: var(--accent1); --card-glow: rgba(0,229,255,0.2); }
+  .cat-card[data-cat="2"] { --card-color: var(--accent2); --card-glow: rgba(124,58,237,0.2); }
+  .cat-card[data-cat="3"] { --card-color: var(--accent3); --card-glow: rgba(16,185,129,0.2); }
+  .cat-card[data-cat="4"] { --card-color: var(--accent4); --card-glow: rgba(245,158,11,0.2); }
+  .cat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--card-color);
+    box-shadow: 0 8px 32px var(--card-glow);
+  }
+  .cat-icon { font-size: 2.2rem; margin-bottom: 14px; display: block; }
+  .cat-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--card-color);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .cat-name { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .cat-desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; }
+  .cat-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--card-color);
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: 'Space Mono', monospace;
+  }
+  .home-intro { text-align: center; margin-bottom: 28px; }
+  .home-intro h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+  .home-intro p { color: var(--text-dim); font-size: 0.9rem; }
+
+  /* QUIZ */
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .quiz-cat-label {
+    font-size: 0.75rem;
+    color: var(--accent1);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+  .quiz-progress { display: flex; align-items: center; gap: 10px; }
+  .progress-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .progress-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .score-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--accent3);
+    white-space: nowrap;
+  }
+  .back-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.82rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { color: var(--text); border-color: var(--accent1); }
+
+  /* Timer */
+  .timer-strip { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+  .timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent3), var(--accent1), var(--accent4), var(--danger));
+    border-radius: 2px;
+    transition: width 1s linear;
+  }
+
+  /* Question */
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 32px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .question-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+  }
+  .q-label {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-family: 'Space Mono', monospace;
+  }
+  .q-main {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(2.2rem, 7vw, 4.5rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent1), #fff 60%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    filter: drop-shadow(0 0 16px rgba(0,229,255,0.25));
+  }
+  .q-sub { font-size: 0.88rem; color: var(--text-dim); margin-top: 10px; }
+
+  /* Options */
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 440px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .question-card { padding: 24px 18px; }
+  }
+  .option-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.97rem;
+    font-weight: 600;
+    transition: all 0.18s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .option-btn:hover:not(:disabled) {
+    border-color: var(--accent1);
+    background: var(--surface2);
+    transform: translateX(4px);
+  }
+  .option-btn:disabled { cursor: default; }
+  .option-btn.correct {
+    border-color: var(--accent3) !important;
+    background: rgba(16,185,129,0.12) !important;
+    color: var(--accent3) !important;
+    animation: correctPop 0.35s ease;
+  }
+  .option-btn.wrong {
+    border-color: var(--danger) !important;
+    background: rgba(239,68,68,0.1) !important;
+    color: var(--danger) !important;
+    animation: shake 0.35s ease;
+  }
+  @keyframes correctPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .opt-letter {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    flex-shrink: 0;
+    transition: all 0.18s;
+  }
+  .option-btn.correct .opt-letter { background: var(--accent3); border-color: var(--accent3); color: #000; }
+  .option-btn.wrong .opt-letter { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+  /* Feedback */
+  .feedback-bar {
+    padding: 13px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.93rem;
+    text-align: center;
+    margin-bottom: 14px;
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  .feedback-bar.show { display: block; }
+  .feedback-bar.correct { background: rgba(16,185,129,0.15); border: 1px solid var(--accent3); color: var(--accent3); }
+  .feedback-bar.wrong { background: rgba(239,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+  /* Next */
+  .next-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+    letter-spacing: 0.5px;
+  }
+  .next-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,229,255,0.3); }
+  .next-btn.show { display: block; animation: fadeIn 0.25s ease; }
+
+  /* RESULT */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 44px 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,229,255,0.05), transparent);
+    pointer-events: none;
+  }
+  .result-emoji { font-size: 3.5rem; margin-bottom: 14px; display: block; }
+  .result-score-big {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(2.8rem, 9vw, 4.5rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+  .result-label { color: var(--text-dim); margin: 8px 0 4px; font-size: 0.88rem; }
+  .result-rating { font-size: 1.2rem; font-weight: 700; margin: 14px 0 28px; }
+  .result-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-bottom: 32px;
+    padding: 18px;
+    background: var(--surface2);
+    border-radius: 12px;
+  }
+  .stat-item { text-align: center; }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--accent1); }
+  .stat-lbl { font-size: 0.76rem; color: var(--text-dim); margin-top: 4px; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-outline {
+    flex: 1;
+    padding: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.93rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 120px;
+  }
+  .btn-outline:hover { border-color: var(--accent1); color: var(--accent1); }
+  .btn-primary {
+    flex: 1;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.93rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 120px;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+
+  /* Particles */
+  .particles { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
+  .particle {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    animation: particleFly 1s ease-out forwards;
+  }
+  @keyframes particleFly {
+    0% { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="particles" id="particles"></div>
+
+<div id="app">
+  <div class="header">
+    <div class="logo">Chem<span>Quest</span></div>
+    <div class="tagline">ทายคำศัพท์เคมี · Chemistry Quiz</div>
+  </div>
+
+  <!-- HOME SCREEN -->
+  <div class="screen active" id="screen-home">
+    <div class="home-intro">
+      <h2>🧪 เลือกหมวดที่ต้องการเล่น</h2>
+      <p>รอบละ 100 ข้อ · มีเวลา 20 วินาทีต่อข้อ · เนื้อหาระดับ A-Level</p>
+    </div>
+    <div class="category-grid">
+      <div class="cat-card" data-cat="1" onclick="startQuiz(1)">
+        <span class="cat-icon">🔤</span>
+        <div class="cat-num">หมวด 01</div>
+        <div class="cat-name">ทายชื่อธาตุ</div>
+        <div class="cat-desc">โจทย์ให้สัญลักษณ์ธาตุ เช่น <b>Na</b> → ตอบชื่อภาษาไทย</div>
+        <div class="cat-badge">Symbol → Name</div>
+      </div>
+      <div class="cat-card" data-cat="2" onclick="startQuiz(2)">
+        <span class="cat-icon">🔢</span>
+        <div class="cat-num">หมวด 02</div>
+        <div class="cat-name">ทายเลขอะตอม</div>
+        <div class="cat-desc">โจทย์ให้เลขอะตอม เช่น <b>11</b> → ตอบสัญลักษณ์ธาตุ</div>
+        <div class="cat-badge">Z → Symbol</div>
+      </div>
+      <div class="cat-card" data-cat="3" onclick="startQuiz(3)">
+        <span class="cat-icon">⚖️</span>
+        <div class="cat-num">หมวด 03</div>
+        <div class="cat-name">ทายเลขมวล</div>
+        <div class="cat-desc">โจทย์ให้เลขมวล เช่น <b>16</b> → ตอบสัญลักษณ์ธาตุ</div>
+        <div class="cat-badge">Mass → Symbol</div>
+      </div>
+      <div class="cat-card" data-cat="4" onclick="startQuiz(4)">
+        <span class="cat-icon">🧬</span>
+        <div class="cat-num">หมวด 04</div>
+        <div class="cat-name">การอ่านชื่อสาร</div>
+        <div class="cat-desc">โจทย์ให้สูตรสาร เช่น <b>HCl</b> → ตอบการอ่านชื่อ</div>
+        <div class="cat-badge">Formula → Name</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ SCREEN -->
+  <div class="screen" id="screen-quiz">
+    <div class="quiz-header">
+      <div class="quiz-cat-label" id="quiz-cat-label">หมวด 01</div>
+      <div class="quiz-progress">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-text" id="progress-text">1 / 100</div>
+      </div>
+      <div class="score-display" id="score-display">0 คะแนน</div>
+      <button class="back-btn" onclick="goHome()">← ออก</button>
+    </div>
+
+    <div class="timer-strip">
+      <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+    </div>
+
+    <div class="question-card">
+      <div class="q-label" id="q-label">สัญลักษณ์ธาตุนี้คืออะไร?</div>
+      <div class="q-main" id="q-main">Na</div>
+      <div class="q-sub" id="q-sub">เลือกชื่อธาตุที่ถูกต้อง</div>
+    </div>
+
+    <div class="options-grid" id="options-grid"></div>
+    <div class="feedback-bar" id="feedback-bar"></div>
+    <button class="next-btn" id="next-btn" onclick="nextQuestion()">ข้อถัดไป →</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="screen" id="screen-result">
+    <div class="result-card">
+      <span class="result-emoji" id="result-emoji">🏆</span>
+      <div class="result-score-big" id="result-score">80/100</div>
+      <div class="result-label">คะแนนของคุณ</div>
+      <div class="result-rating" id="result-rating">ยอดเยี่ยมมาก!</div>
+      <div class="result-stats">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-correct">80</div>
+          <div class="stat-lbl">ถูก</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-wrong" style="color:var(--danger)">20</div>
+          <div class="stat-lbl">ผิด</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-pct" style="color:var(--accent4)">80%</div>
+          <div class="stat-lbl">ความแม่นยำ</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-outline" onclick="goHome()">🏠 เมนูหลัก</button>
+        <button class="btn-primary" onclick="retryQuiz()">🔄 เล่นใหม่</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const elements = [
+  {z:1,  symbol:'H',  name:'ไฮโดรเจน',     mass:1},
+  {z:2,  symbol:'He', name:'ฮีเลียม',        mass:4},
+  {z:3,  symbol:'Li', name:'ลิเทียม',        mass:7},
+  {z:4,  symbol:'Be', name:'เบริลเลียม',     mass:9},
+  {z:5,  symbol:'B',  name:'โบรอน',          mass:11},
+  {z:6,  symbol:'C',  name:'คาร์บอน',        mass:12},
+  {z:7,  symbol:'N',  name:'ไนโตรเจน',       mass:14},
+  {z:8,  symbol:'O',  name:'ออกซิเจน',       mass:16},
+  {z:9,  symbol:'F',  name:'ฟลูออรีน',       mass:19},
+  {z:10, symbol:'Ne', name:'นีออน',           mass:20},
+  {z:11, symbol:'Na', name:'โซเดียม',         mass:23},
+  {z:12, symbol:'Mg', name:'แมกนีเซียม',     mass:24},
+  {z:13, symbol:'Al', name:'อะลูมิเนียม',    mass:27},
+  {z:14, symbol:'Si', name:'ซิลิกอน',        mass:28},
+  {z:15, symbol:'P',  name:'ฟอสฟอรัส',       mass:31},
+  {z:16, symbol:'S',  name:'กำมะถัน',        mass:32},
+  {z:17, symbol:'Cl', name:'คลอรีน',         mass:35},
+  {z:18, symbol:'Ar', name:'อาร์กอน',        mass:40},
+  {z:19, symbol:'K',  name:'โพแทสเซียม',     mass:39},
+  {z:20, symbol:'Ca', name:'แคลเซียม',       mass:40},
+  {z:21, symbol:'Sc', name:'สแกนเดียม',      mass:45},
+  {z:22, symbol:'Ti', name:'ไทเทเนียม',      mass:48},
+  {z:23, symbol:'V',  name:'วาเนเดียม',      mass:51},
+  {z:24, symbol:'Cr', name:'โครเมียม',       mass:52},
+  {z:25, symbol:'Mn', name:'แมงกานีส',       mass:55},
+  {z:26, symbol:'Fe', name:'เหล็ก',          mass:56},
+  {z:27, symbol:'Co', name:'โคบอลต์',        mass:59},
+  {z:28, symbol:'Ni', name:'นิกเกิล',        mass:58},
+  {z:29, symbol:'Cu', name:'ทองแดง',         mass:64},
+  {z:30, symbol:'Zn', name:'สังกะสี',        mass:65},
+  {z:31, symbol:'Ga', name:'แกลเลียม',       mass:70},
+  {z:32, symbol:'Ge', name:'เจอร์เมเนียม',   mass:73},
+  {z:33, symbol:'As', name:'สารหนู',         mass:75},
+  {z:34, symbol:'Se', name:'ซีลีเนียม',      mass:79},
+  {z:35, symbol:'Br', name:'โบรมีน',         mass:80},
+  {z:36, symbol:'Kr', name:'คริปทอน',        mass:84},
+  {z:37, symbol:'Rb', name:'รูบิเดียม',      mass:85},
+  {z:38, symbol:'Sr', name:'สทรอนเทียม',    mass:88},
+  {z:39, symbol:'Y',  name:'อิตเทรียม',      mass:89},
+  {z:40, symbol:'Zr', name:'เซอร์โคเนียม',  mass:91},
+  {z:42, symbol:'Mo', name:'โมลิบดีนัม',    mass:96},
+  {z:47, symbol:'Ag', name:'เงิน',           mass:108},
+  {z:48, symbol:'Cd', name:'แคดเมียม',       mass:112},
+  {z:49, symbol:'In', name:'อินเดียม',       mass:115},
+  {z:50, symbol:'Sn', name:'ดีบุก',          mass:119},
+  {z:51, symbol:'Sb', name:'พลวง',           mass:122},
+  {z:52, symbol:'Te', name:'เทลลูเรียม',    mass:128},
+  {z:53, symbol:'I',  name:'ไอโอดีน',        mass:127},
+  {z:54, symbol:'Xe', name:'ซีนอน',          mass:131},
+  {z:55, symbol:'Cs', name:'ซีเซียม',        mass:133},
+  {z:56, symbol:'Ba', name:'แบเรียม',        mass:137},
+  {z:57, symbol:'La', name:'แลนทานัม',       mass:139},
+  {z:72, symbol:'Hf', name:'แฮฟเนียม',      mass:178},
+  {z:74, symbol:'W',  name:'ทังสเตน',        mass:184},
+  {z:78, symbol:'Pt', name:'แพลทินัม',       mass:195},
+  {z:79, symbol:'Au', name:'ทอง',            mass:197},
+  {z:80, symbol:'Hg', name:'ปรอท',           mass:201},
+  {z:81, symbol:'Tl', name:'แทลเลียม',       mass:204},
+  {z:82, symbol:'Pb', name:'ตะกั่ว',         mass:207},
+  {z:83, symbol:'Bi', name:'บิสมัท',         mass:209},
+  {z:88, symbol:'Ra', name:'เรเดียม',        mass:226},
+  {z:92, symbol:'U',  name:'ยูเรเนียม',      mass:238},
+];
+
+const compounds = [
+  {formula:'HCl',          name:'ไฮโดรคลอริก'},
+  {formula:'H₂SO₄',       name:'กรดซัลฟิวริก'},
+  {formula:'HNO₃',         name:'กรดไนตริก'},
+  {formula:'H₃PO₄',       name:'กรดฟอสฟอริก'},
+  {formula:'H₂CO₃',       name:'กรดคาร์บอนิก'},
+  {formula:'CH₃COOH',     name:'กรดแอซีติก'},
+  {formula:'NaOH',          name:'โซเดียมไฮดรอกไซด์'},
+  {formula:'KOH',           name:'โพแทสเซียมไฮดรอกไซด์'},
+  {formula:'Ca(OH)₂',     name:'แคลเซียมไฮดรอกไซด์'},
+  {formula:'NH₃',           name:'แอมโมเนีย'},
+  {formula:'NaCl',          name:'โซเดียมคลอไรด์'},
+  {formula:'KNO₃',         name:'โพแทสเซียมไนเตรต'},
+  {formula:'CaCO₃',        name:'แคลเซียมคาร์บอเนต'},
+  {formula:'Na₂SO₄',      name:'โซเดียมซัลเฟต'},
+  {formula:'FeCl₃',        name:'เหล็ก(III)คลอไรด์'},
+  {formula:'FeCl₂',        name:'เหล็ก(II)คลอไรด์'},
+  {formula:'CuSO₄',        name:'คอปเปอร์(II)ซัลเฟต'},
+  {formula:'H₂O',          name:'น้ำ'},
+  {formula:'CO₂',           name:'คาร์บอนไดออกไซด์'},
+  {formula:'CO',             name:'คาร์บอนมอนอกไซด์'},
+  {formula:'SO₂',           name:'ซัลเฟอร์ไดออกไซด์'},
+  {formula:'SO₃',           name:'ซัลเฟอร์ไตรออกไซด์'},
+  {formula:'NO₂',           name:'ไนโตรเจนไดออกไซด์'},
+  {formula:'NO',             name:'ไนโตรเจนมอนอกไซด์'},
+  {formula:'N₂O',           name:'ไดไนโตรเจนออกไซด์'},
+  {formula:'HF',             name:'ไฮโดรฟลูออริก'},
+  {formula:'HBr',            name:'ไฮโดรโบรมิก'},
+  {formula:'HI',             name:'ไฮโดรไอโอดิก'},
+  {formula:'H₂S',           name:'ไฮโดรเจนซัลไฟด์'},
+  {formula:'NH₄Cl',        name:'แอมโมเนียมคลอไรด์'},
+  {formula:'KMnO₄',        name:'โพแทสเซียมเปอร์แมงกาเนต'},
+  {formula:'Na₂CO₃',       name:'โซเดียมคาร์บอเนต'},
+  {formula:'NaHCO₃',       name:'โซเดียมไฮโดรเจนคาร์บอเนต'},
+  {formula:'MgO',           name:'แมกนีเซียมออกไซด์'},
+  {formula:'Al₂O₃',        name:'อะลูมิเนียมออกไซด์'},
+  {formula:'Fe₂O₃',        name:'เหล็ก(III)ออกไซด์'},
+  {formula:'FeO',           name:'เหล็ก(II)ออกไซด์'},
+  {formula:'HClO₄',        name:'กรดเปอร์คลอริก'},
+  {formula:'HClO₃',        name:'กรดคลอริก'},
+  {formula:'HClO₂',        name:'กรดคลอรัส'},
+  {formula:'HClO',          name:'กรดไฮโปคลอรัส'},
+  {formula:'CH₄',           name:'มีเทน'},
+  {formula:'C₂H₆',         name:'อีเทน'},
+  {formula:'C₃H₈',         name:'โพรเพน'},
+  {formula:'C₄H₁₀',        name:'บิวเทน'},
+  {formula:'C₂H₄',         name:'เอทิลีน'},
+  {formula:'C₂H₂',         name:'อะเซทิลีน'},
+  {formula:'C₂H₅OH',       name:'เอทานอล'},
+  {formula:'CH₃OH',         name:'เมทานอล'},
+  {formula:'C₆H₁₂O₆',     name:'กลูโคส'},
+  {formula:'C₁₂H₂₂O₁₁',  name:'ซูโครส'},
+  {formula:'BaSO₄',         name:'แบเรียมซัลเฟต'},
+  {formula:'BaCl₂',         name:'แบเรียมคลอไรด์'},
+  {formula:'AgNO₃',         name:'ซิลเวอร์ไนเตรต'},
+  {formula:'AgCl',          name:'ซิลเวอร์คลอไรด์'},
+  {formula:'ZnO',           name:'สังกะสีออกไซด์'},
+  {formula:'ZnSO₄',        name:'สังกะสีซัลเฟต'},
+  {formula:'MnO₂',         name:'แมงกานีสไดออกไซด์'},
+  {formula:'KCl',           name:'โพแทสเซียมคลอไรด์'},
+  {formula:'K₂SO₄',        name:'โพแทสเซียมซัลเฟต'},
+  {formula:'CaSO₄',         name:'แคลเซียมซัลเฟต'},
+  {formula:'CaCl₂',         name:'แคลเซียมคลอไรด์'},
+  {formula:'Ca₃(PO₄)₂',   name:'แคลเซียมฟอสเฟต'},
+  {formula:'Na₂SO₃',       name:'โซเดียมซัลไฟต์'},
+  {formula:'Na₂S',          name:'โซเดียมซัลไฟด์'},
+  {formula:'NaF',           name:'โซเดียมฟลูออไรด์'},
+  {formula:'NaBr',          name:'โซเดียมโบรไมด์'},
+  {formula:'NaI',           name:'โซเดียมไอโอไดด์'},
+  {formula:'NH₄NO₃',       name:'แอมโมเนียมไนเตรต'},
+  {formula:'(NH₄)₂SO₄',   name:'แอมโมเนียมซัลเฟต'},
+  {formula:'CuO',           name:'คอปเปอร์(II)ออกไซด์'},
+  {formula:'Cu₂O',          name:'คอปเปอร์(I)ออกไซด์'},
+  {formula:'PbO',           name:'ตะกั่ว(II)ออกไซด์'},
+  {formula:'PbSO₄',         name:'ตะกั่ว(II)ซัลเฟต'},
+  {formula:'Pb(NO₃)₂',     name:'ตะกั่ว(II)ไนเตรต'},
+  {formula:'HgCl₂',         name:'ปรอท(II)คลอไรด์'},
+  {formula:'K₂Cr₂O₇',     name:'โพแทสเซียมไดโครเมต'},
+  {formula:'K₂CrO₄',      name:'โพแทสเซียมโครเมต'},
+  {formula:'Na₂O',          name:'โซเดียมออกไซด์'},
+  {formula:'P₂O₅',          name:'ไดฟอสฟอรัสเพนทาออกไซด์'},
+  {formula:'PCl₃',          name:'ฟอสฟอรัส(III)คลอไรด์'},
+  {formula:'PCl₅',          name:'ฟอสฟอรัส(V)คลอไรด์'},
+  {formula:'SF₆',           name:'ซัลเฟอร์เฮกซะฟลูออไรด์'},
+  {formula:'CCl₄',           name:'คาร์บอนเตตระคลอไรด์'},
+  {formula:'CHCl₃',          name:'คลอโรฟอร์ม'},
+  {formula:'C₆H₆',          name:'เบนซีน'},
+  {formula:'HCHO',           name:'ฟอร์มาลดีไฮด์'},
+  {formula:'CH₃CHO',        name:'อะเซทาลดีไฮด์'},
+  {formula:'CH₃COCH₃',     name:'อะซีโตน'},
+  {formula:'HCOOH',          name:'กรดฟอร์มิก'},
+  {formula:'C₆H₅OH',       name:'ฟีนอล'},
+  {formula:'Al(OH)₃',       name:'อะลูมิเนียมไฮดรอกไซด์'},
+  {formula:'Mg(OH)₂',       name:'แมกนีเซียมไฮดรอกไซด์'},
+  {formula:'Fe(OH)₃',       name:'เหล็ก(III)ไฮดรอกไซด์'},
+  {formula:'Cr₂O₃',         name:'โครเมียม(III)ออกไซด์'},
+  {formula:'NaCN',           name:'โซเดียมไซยาไนด์'},
+  {formula:'HCN',            name:'ไฮโดรเจนไซยาไนด์'},
+  {formula:'O₃',             name:'โอโซน'},
+  {formula:'H₂O₂',          name:'ไฮโดรเจนเปอร์ออกไซด์'},
+  {formula:'Na₂O₂',         name:'โซเดียมเปอร์ออกไซด์'},
+  {formula:'CaO',            name:'แคลเซียมออกไซด์'},
+  {formula:'SiO₂',          name:'ซิลิกอนไดออกไซด์'},
+];
+
+const catInfo = {
+  1: {label:'หมวด 01 — ทายชื่อธาตุ',     qLabel:'สัญลักษณ์ธาตุนี้คืออะไร?',   sub:'เลือกชื่อธาตุที่ถูกต้อง'},
+  2: {label:'หมวด 02 — ทายเลขอะตอม',    qLabel:'เลขอะตอมนี้คือธาตุใด?',       sub:'เลือกสัญลักษณ์ธาตุที่ถูกต้อง'},
+  3: {label:'หมวด 03 — ทายเลขมวล',      qLabel:'เลขมวลนี้คือธาตุใด?',          sub:'เลือกสัญลักษณ์ธาตุที่ถูกต้อง'},
+  4: {label:'หมวด 04 — การอ่านชื่อสาร',  qLabel:'สูตรเคมีนี้อ่านว่าอะไร?',     sub:'เลือกชื่อสารที่ถูกต้อง'},
+};
+
+const TOTAL = 100;
+
+// ===================== STATE =====================
+let currentCat    = 1;
+let questions     = [];
+let current       = 0;
+let score         = 0;
+let answered      = false;
+let timerInterval = null;
+let timeLeft      = 20;
+
+// ===================== HELPERS =====================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Repeat-shuffle pool until we have at least n items
+function buildPool(pool, n) {
+  let result = [];
+  while (result.length < n) {
+    result = result.concat(shuffle([...pool]));
+  }
+  return result.slice(0, n);
+}
+
+// Get 3 distinct wrong answers (by key) excluding the correct item index
+function getWrongs(pool, correctItem, key, count) {
+  const wrongPool = pool.filter(x => x[key] !== correctItem[key]);
+  return shuffle(wrongPool).slice(0, count).map(x => x[key]);
+}
+
+// ===================== BUILD QUESTIONS =====================
+function buildQuestions(cat) {
+  if (cat === 1) {
+    return buildPool(elements, TOTAL).map(el => {
+      const wrongs = getWrongs(elements, el, 'name', 3);
+      return { prompt: el.symbol, answer: el.name, options: shuffle([el.name, ...wrongs]) };
+    });
+  }
+  if (cat === 2) {
+    return buildPool(elements, TOTAL).map(el => {
+      const wrongs = getWrongs(elements, el, 'symbol', 3);
+      return { prompt: String(el.z), answer: el.symbol, options: shuffle([el.symbol, ...wrongs]) };
+    });
+  }
+  if (cat === 3) {
+    return buildPool(elements, TOTAL).map(el => {
+      const wrongs = getWrongs(elements, el, 'symbol', 3);
+      return { prompt: String(el.mass), answer: el.symbol, options: shuffle([el.symbol, ...wrongs]) };
+    });
+  }
+  if (cat === 4) {
+    return buildPool(compounds, TOTAL).map(c => {
+      const wrongs = getWrongs(compounds, c, 'name', 3);
+      return { prompt: c.formula, answer: c.name, options: shuffle([c.name, ...wrongs]) };
+    });
+  }
+}
+
+// ===================== NAVIGATION =====================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function goHome() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  showScreen('home');
+}
+
+function startQuiz(cat) {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  currentCat = cat;
+  current    = 0;
+  score      = 0;
+  answered   = false;
+  questions  = buildQuestions(cat);
+  document.getElementById('quiz-cat-label').textContent = catInfo[cat].label;
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function retryQuiz() {
+  startQuiz(currentCat);
+}
+
+// ===================== RENDER QUESTION =====================
+function renderQuestion() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  answered = false;
+
+  const q    = questions[current];
+  const info = catInfo[currentCat];
+
+  document.getElementById('q-label').textContent          = info.qLabel;
+  document.getElementById('q-main').textContent           = q.prompt;
+  document.getElementById('q-sub').textContent            = info.sub;
+  document.getElementById('progress-text').textContent    = `${current + 1} / ${TOTAL}`;
+  document.getElementById('progress-fill').style.width    = `${(current / TOTAL) * 100}%`;
+  document.getElementById('score-display').textContent    = `${score} คะแนน`;
+
+  // Reset feedback
+  const fb = document.getElementById('feedback-bar');
+  fb.className  = 'feedback-bar';
+  fb.textContent = '';
+
+  // Reset next button
+  document.getElementById('next-btn').className = 'next-btn';
+
+  // Build option buttons
+  const grid    = document.getElementById('options-grid');
+  const letters = ['A', 'B', 'C', 'D'];
+  grid.innerHTML = '';
+
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className       = 'option-btn';
+    btn.dataset.value   = opt;          // store value in dataset — no textContent ambiguity
+    btn.innerHTML       = `<span class="opt-letter">${letters[i]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', () => selectAnswer(opt, btn));
+    grid.appendChild(btn);
+  });
+
+  startTimer();
+}
+
+// ===================== TIMER =====================
+function startTimer() {
+  timeLeft = 20;
+  const fill = document.getElementById('timer-fill');
+  // reset without transition then re-enable
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fill.style.transition = 'width 1s linear';
+    });
+  });
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const pct = Math.max(0, (timeLeft / 20) * 100);
+    fill.style.width = pct + '%';
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      if (!answered) {
+        answered = true;
+        highlightCorrect();
+        disableOptions();
+        showFeedback(false, `⏰ หมดเวลา! คำตอบที่ถูกคือ "${questions[current].answer}"`);
+        document.getElementById('next-btn').classList.add('show');
+      }
+    }
+  }, 1000);
+}
+
+// ===================== ANSWER LOGIC =====================
+function selectAnswer(val, btn) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  const correctAns = questions[current].answer;
+  const isCorrect  = (val === correctAns);
+
+  if (isCorrect) {
+    score++;
+    btn.classList.add('correct');
+    showFeedback(true, '✅ ถูกต้อง!');
+    spawnParticles(btn);
+  } else {
+    btn.classList.add('wrong');
+    highlightCorrect();
+    showFeedback(false, `❌ ผิด! คำตอบที่ถูกคือ "${correctAns}"`);
+  }
+
+  disableOptions();
+  document.getElementById('score-display').textContent = `${score} คะแนน`;
+  document.getElementById('next-btn').classList.add('show');
+}
+
+// Uses dataset.value — no text matching bugs
+function highlightCorrect() {
+  const correctAns = questions[current].answer;
+  document.querySelectorAll('.option-btn').forEach(b => {
+    if (b.dataset.value === correctAns) b.classList.add('correct');
+  });
+}
+
+function disableOptions() {
+  document.querySelectorAll('.option-btn').forEach(b => { b.disabled = true; });
+}
+
+function showFeedback(ok, msg) {
+  const fb  = document.getElementById('feedback-bar');
+  fb.textContent = msg;
+  fb.className   = 'feedback-bar show ' + (ok ? 'correct' : 'wrong');
+}
+
+// ===================== NEXT / RESULT =====================
+function nextQuestion() {
+  current++;
+  if (current >= TOTAL) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  const pct = Math.round((score / TOTAL) * 100);
+  document.getElementById('result-score').textContent   = `${score}/${TOTAL}`;
+  document.getElementById('stat-correct').textContent   = score;
+  document.getElementById('stat-wrong').textContent     = TOTAL - score;
+  document.getElementById('stat-pct').textContent       = pct + '%';
+
+  let emoji, rating;
+  if      (pct === 100) { emoji='🏆'; rating='สมบูรณ์แบบ! อัจฉริยะเคมี! 🎉'; }
+  else if (pct >= 90)   { emoji='🌟'; rating='ยอดเยี่ยมมาก! เก่งมากๆ 💪'; }
+  else if (pct >= 80)   { emoji='😎'; rating='เก่งมาก! ระดับเก่ง 👍'; }
+  else if (pct >= 70)   { emoji='📚'; rating='ดีมาก! ทบทวนเพิ่มอีกนิดนะ'; }
+  else if (pct >= 60)   { emoji='🙂'; rating='ผ่านได้! แต่ต้องฝึกเพิ่ม'; }
+  else if (pct >= 40)   { emoji='📖'; rating='ต้องทบทวนเพิ่มเติมนะ'; }
+  else                  { emoji='💡'; rating='ไม่เป็นไร! ลองอีกครั้งได้เลย!'; }
+
+  document.getElementById('result-emoji').textContent   = emoji;
+  document.getElementById('result-rating').textContent  = rating;
+
+  showScreen('result');
+}
+
+// ===================== PARTICLES =====================
+function spawnParticles(refEl) {
+  const rect   = refEl.getBoundingClientRect();
+  const cx     = rect.left + rect.width  / 2;
+  const cy     = rect.top  + rect.height / 2;
+  const colors = ['#00e5ff','#7c3aed','#10b981','#f59e0b','#ef4444','#fff'];
+  const container = document.getElementById('particles');
+
+  for (let i = 0; i < 14; i++) {
+    const p     = document.createElement('div');
+    p.className = 'particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 60 + Math.random() * 90;
+    p.style.cssText = `
+      left:${cx - 4}px; top:${cy - 4}px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      --dx:${Math.cos(angle)*dist}px; --dy:${Math.sin(angle)*dist}px;
+    `;
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 1100);
+  }
+}
+</script>
+</body>
+</html>
